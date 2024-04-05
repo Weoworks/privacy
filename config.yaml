@@ -27,7 +27,7 @@ trafficLogShow: true
 # 用户协议及隐私政策
 agreements:
   # 是否显示（总开关：[第一次进入app、登录、注册、其他设置-关于]的显示）
-  show: true
+  show: false
   # 第一次进入 app 的弹窗标题
   title: "你好"
   # 第一次进入 app 的弹窗内容，支持文字a标签跳转
