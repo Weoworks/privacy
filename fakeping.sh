@@ -8,7 +8,7 @@ if [[ "${yorn}" == "y" || "${yorn}" == "Y" ]]; then
     echo -e "127.0.0.1 gstatic.com" | sudo tee -a /etc/hosts >/dev/null
     echo -e "127.0.0.1 gstatic.com" | sudo tee -a /etc/hosts >/dev/null
     if [ "$check" == "true" ]; then
-        awk 'NR==6{$0="      "outboundTag": "IPv4_out","}1' /etc/XrayR/route.json > /etc/XrayR/route.json.temp && mv /etc/XrayR/route.json.temp /etc/XrayR/route.json
+        awk 'NR==6{$0="      \"outboundTag\": \"IPv4_out\","}1' /etc/XrayR/route.json > /etc/XrayR/route.json.temp && mv /etc/XrayR/route.json.temp /etc/XrayR/route.json
     fi
     echo -e "添加成功~"
 else
