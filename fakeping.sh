@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # 检查路由文件中是否包含 "geoip:private"
-check=$(grep -o '"geoip:private"' /etc/XrayR/route.json)
+check=$(sed -n '6s/.*"ip": \["geoip:private"\].*/true/p' /etc/XrayR/route.json)
 
 echo -e "我知道设置这个没用，但是我还是设置了"
 read -p "您确定要设置本服务器吗？(Y/N): " yorn
@@ -9,9 +9,9 @@ read -p "您确定要设置本服务器吗？(Y/N): " yorn
 if [[ "${yorn}" == "y" || "${yorn}" == "Y" ]]; then
     echo -e "127.0.0.1 gstatic.com" | sudo tee -a /etc/hosts >/dev/null
     echo -e "127.0.0.1 gstatic.com" | sudo tee -a /etc/hosts >/dev/null
-    if [ -n "$check" ]; then
+    if [ "$check" == "true" ]; then
         # 使用 sed 替换 JSON 文件中的内容
-        sed -i '6s/.*/      "outboundTag": "IPv4_out",/' /etc/XrayR/route.json
+        sed -i '6s/"outboundTag":.*$/"outboundTag": "IPv4_out",/' /etc/XrayR/route.json
     fi
     echo -e "添加成功~"
 else
