@@ -7,3 +7,4 @@ echo -e "127.0.0.1 gstatic.com" >> /etc/hosts
 echo -e "添加成功~"
 else
    echo -e "正在关闭..."
+exit
