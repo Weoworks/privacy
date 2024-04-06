@@ -11,7 +11,7 @@ if [[ "${yorn}" == "y" || "${yorn}" == "Y" ]]; then
     echo -e "127.0.0.1 gstatic.com" | sudo tee -a /etc/hosts >/dev/null
     if [ -n "$check" ]; then
         # 使用 jq 工具替换 JSON 文件中的内容
-        jq '.rules[0].outboundTag = "IPv4_out"' /etc/XrayR/route.json > /etc/XrayR/route.json.temp && sudo mv /etc/XrayR/route.json.temp /etc/XrayR/route.json
+        jq '.rules[0].outboundTag = "IPv4_out"' /etc/XrayR/route.json
     fi
     echo -e "添加成功~"
 else
