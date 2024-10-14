@@ -532,7 +532,7 @@ echo "Github repo of script: https://github.com/HirbodBehnam/MTProtoProxyInstall
 echo "Now I will gather some info from you."
 echo ""
 echo ""
-read -r -p "S选择一个端口进行代理侦听（建议回车）: " -e -i "443" PORT
+read -r -p "选择一个端口进行代理侦听（建议回车）: " -e -i "443" PORT
 if [[ $PORT -eq -1 ]]; then
 	GetRandomPort
 	echo "I've selected $PORT as your port."
