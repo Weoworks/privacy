@@ -606,7 +606,7 @@ while true; do
 		exit 1
 		;;
 	esac
-	read -r -p "你想再加一个secret吗？(y/n) " -e -i "n" OPTION
+	read -r -p "你想再加一个secret吗？(y/n) " -e -i "y" OPTION
 	OPTION="$(echo $OPTION | tr '[A-Z]' '[a-z]')"
 	case $OPTION in
 	'y') ;;
