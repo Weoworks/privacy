@@ -748,10 +748,10 @@ systemctl start mtprotoproxy
 tput setaf 3
 printf "%$(tput cols)s" | tr ' ' '#'
 tput sgr 0
-echo "Ok it must be done. I created a service to run or stop the proxy."
-echo 'Use "systemctl start mtprotoproxy" or "systemctl stop mtprotoproxy" to start or stop it'
+echo "我创建了一个服务来运行或停止代理。"
+echo '使用“systemctl start mtprotoproxy”或“systemctl stop mtprotoproxy”启动或停止它'
 echo
-echo "Use these links to connect to your proxy:"
+echo "使用这些链接连接到您的代理（记得替换对应的IP）:"
 PUBLIC_IP="$(curl https://api.ipify.org -sS)"
 CURL_EXIT_STATUS=$?
 [ $CURL_EXIT_STATUS -ne 0 ] && PUBLIC_IP="YOUR_IP"
