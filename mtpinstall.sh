@@ -129,19 +129,19 @@ if [ -d "/opt/mtprotoproxy" ]; then
 			fi
 		fi
 	else
-		echo "You have already installed MTProtoProxy! What do you want to do?"
-		echo "  1 ) View all connection links"
-		echo "  2 ) Upgrade proxy software"
-		echo "  3 ) Change AD TAG"
-		echo "  4 ) Add a secret"
-		echo "  5 ) Revoke a secret"
-		echo "  6 ) Change user connection limits"
-		echo "  7 ) Change user expiry date"
-		echo "  8 ) Change user quota options"
-		echo "  9 ) Generate firewall rules"
-		echo "  10) Uninstall Proxy"
-		echo "  11) About"
-		echo "  * ) Exit"
+		echo "您已经安装了MTProtoProxy！你想做什么？"
+		echo "  1 ) 查看所有连接链接"
+		echo "  2 ) 升级代理软件"
+		echo "  3 ) 更改广告标签"
+		echo "  4 ) 添加一个secret"
+		echo "  5 ) 撤销一个secret"
+		echo "  6 ) 更改用户连接限制"
+		echo "  7 ) 更改用户有效期"
+		echo "  8 ) 更改用户配额选项"
+		echo "  9 ) 生成防火墙规则"
+		echo "  10) 卸载代理"
+		echo "  11) 关于"
+		echo "  * ) 退出"
 		read -r -p "Please enter a number: " OPTION
 	fi
 	case $OPTION in
