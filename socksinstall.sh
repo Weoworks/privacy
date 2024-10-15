@@ -36,40 +36,56 @@ EOF
 }
 
 config_xray() {
-    config_type=$1
     mkdir -p /etc/xrayL
     users_file="/etc/xrayL/users.txt"
     >"$users_file"  # 清空或创建用户记录文件
 
-    read -p "需要创建多少个用户: " USER_COUNT
+    read -p "每个 IP 创建多少个用户: " USERS_PER_IP
     read -p "起始端口 (默认 $DEFAULT_START_PORT): " START_PORT
     START_PORT=${START_PORT:-$DEFAULT_START_PORT}
 
     config_content='{ "inbounds": ['
-    for ((i = 0; i < USER_COUNT; i++)); do
-        USERNAME=$(generate_random_string)
-        PASSWORD=$(generate_random_string)
 
-        echo "用户 $((i + 1)) -> 账号: $USERNAME, 密码: $PASSWORD, 端口: $((START_PORT + i))" >>"$users_file"
+    for ((ip_idx = 0; ip_idx < ${#IP_ADDRESSES[@]}; ip_idx++)); do
+        ip="${IP_ADDRESSES[ip_idx]}"
+        accounts=""
 
+        # 为当前 IP 生成多个用户账号和密码
+        for ((user_idx = 0; user_idx < USERS_PER_IP; user_idx++)); do
+            USERNAME=$(generate_random_string)
+            PASSWORD=$(generate_random_string)
+
+            echo "IP: $ip -> 用户 $((user_idx + 1)) -> 账号: $USERNAME, 密码: $PASSWORD, 端口: $((START_PORT + ip_idx))" >>"$users_file"
+
+            accounts+=$(cat <<EOF
+{ "user": "$USERNAME", "pass": "$PASSWORD" }
+EOF
+)
+            if ((user_idx < USERS_PER_IP - 1)); then
+                accounts+=','
+            fi
+        done
+
+        # 为每个 IP 生成一个 inbound 配置
         config_content+=$(cat <<EOF
 {
-    "port": $((START_PORT + i)),
-    "protocol": "$config_type",
-    "tag": "tag_$((i + 1))",
+    "port": $((START_PORT + ip_idx)),
+    "protocol": "socks",
+    "tag": "tag_$((ip_idx + 1))",
     "settings": {
         "auth": "password",
         "udp": true,
-        "accounts": [{ "user": "$USERNAME", "pass": "$PASSWORD" }]
+        "accounts": [$accounts]
     },
-    "listen": "${IP_ADDRESSES[i % ${#IP_ADDRESSES[@]}]}"
+    "listen": "$ip"
 }
 EOF
 )
-        if ((i < USER_COUNT - 1)); then
+        if ((ip_idx < ${#IP_ADDRESSES[@]} - 1)); then
             config_content+=','
         fi
     done
+
     config_content+='], "outbounds": [{ "protocol": "freedom", "tag": "outbound" }] }'
 
     echo "$config_content" >/etc/xrayL/config.json
@@ -77,15 +93,14 @@ EOF
     systemctl --no-pager status xrayL.service
 
     echo ""
-    echo "生成 $config_type 配置完成"
+    echo "生成 socks 配置完成"
     echo "起始端口: $START_PORT"
-    echo "结束端口: $(($START_PORT + USER_COUNT - 1))"
     echo "用户信息已保存到 $users_file"
     echo ""
 }
 
 main() {
     [ -x "$(command -v xrayL)" ] || install_xray
-    config_xray "socks"
+    config_xray
 }
 main "$@"
