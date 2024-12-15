@@ -80,7 +80,7 @@
         "type": "field",
         "protocol": ["bittorrent"],
         "outboundTag": "block"
-      },
+      }
     ]
   }
 }
