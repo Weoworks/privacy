@@ -6,7 +6,7 @@ Wants=network.target
 [Service]
 Type=simple
 WorkingDirectory=/etc/autoxray
-ExecStart=/etc/autoxray/xray run shadowsocks.json
+ExecStart=/etc/autoxray/xray run
 Restart=on-failure
 RestartSec=5s
 
