@@ -1,6 +1,7 @@
 mkdir /etc/autoxray
 cd /etc/autoxray
 wget https://raw.githubusercontent.com/Weoworks/privacy/refs/heads/main/shadowsocks.json
+mv shadowsocks.json config.json
 wget https://github.com/XTLS/Xray-core/releases/download/v24.11.30/Xray-linux-64.zip
 unzip Xray-linux-64.zip
 wget https://raw.githubusercontent.com/Weoworks/privacy/refs/heads/main/autoxray.service
