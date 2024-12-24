@@ -1,4 +1,3 @@
-sudo -i
 mkdir /etc/autoxray
 cd /etc/autoxray
 wget https://raw.githubusercontent.com/Weoworks/privacy/refs/heads/main/shadowsocks.json
