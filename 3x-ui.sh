@@ -633,6 +633,8 @@ prompt_and_setup_ssl() {
         systemctl restart x-ui >/dev/null 2>&1 || rc-service x-ui restart >/dev/null 2>&1
         ;;
     4)
+        #uwu
+        echo -e "自签测试"
         echo -e "${green}Creating self-signed SSL certificate (10 years)...${plain}"
 
         # 输入域名（用于证书CN）
