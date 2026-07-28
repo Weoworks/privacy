@@ -9,6 +9,7 @@ XRAY_HOME="/usr/local/bin/xray"
 XRAY_BIN="${XRAY_HOME}/xray"
 XRAY_CONFIG_DIR="/usr/local/etc/xray"
 XRAY_CONFIG="${XRAY_CONFIG_DIR}/config.json"
+CLIENT_INFO="${XRAY_CONFIG_DIR}/client_info.json"
 
 get_arch(){
     case "$(uname -m)" in
@@ -20,6 +21,13 @@ get_arch(){
         riscv64) echo "riscv64" ;;
         *) echo "Unsupported architecture"; exit 1 ;;
     esac
+}
+
+get_public_ip(){
+    SERVER_IP=$(curl -s4 https://api.ipify.org || curl -s4 https://ifconfig.me || curl -s4 https://api.ip.sb/ip)
+    if [ -z "$SERVER_IP" ]; then
+        SERVER_IP="YOUR_SERVER_IP"
+    fi
 }
 
 short_id(){
@@ -35,9 +43,91 @@ reality_key(){
     SHORT_ID=$(short_id)
 }
 
+save_client_info(){
+cat > ${CLIENT_INFO} <<EOF
+{
+  "uuid": "${UUID}",
+  "public_key": "${PUBLIC_KEY}",
+  "short_id": "${SHORT_ID}",
+  "sni": "${SNI}"
+}
+EOF
+}
+
+show_client_links(){
+    if [ ! -f "${CLIENT_INFO}" ]; then
+        echo "未找到客户端配置文件，请先安装节点！"
+        return
+    fi
+
+    get_public_ip
+
+    # 读取客户端参数
+    UUID=$(python3 -c "import json; print(json.load(open('${CLIENT_INFO}'))['uuid'])")
+    PUBLIC_KEY=$(python3 -c "import json; print(json.load(open('${CLIENT_INFO}'))['public_key'])")
+    SHORT_ID=$(python3 -c "import json; print(json.load(open('${CLIENT_INFO}'))['short_id'])")
+    SNI=$(python3 -c "import json; print(json.load(open('${CLIENT_INFO}'))['sni'])")
+
+    # 生成 V2Ray 协议链接 (%2F 为路径斜杠 / 的 URL 编码)
+    TROJAN_LINK="trojan://${UUID}@${SERVER_IP}:53999?security=reality&sni=${SNI}&fp=edge&pbk=${PUBLIC_KEY}&sid=${SHORT_ID}&type=tcp#Trojan-Reality"
+    VLESS_LINK="vless://${UUID}@${SERVER_IP}:53666?security=reality&sni=${SNI}&fp=edge&pbk=${PUBLIC_KEY}&sid=${SHORT_ID}&type=xhttp&path=%2Ftxc&host=${SNI}&mode=auto#VLESS-XHTTP-Reality"
+
+    echo ""
+    echo "=================================================================="
+    echo "                      节点链接与客户端配置                        "
+    echo "=================================================================="
+    echo ""
+    echo "--- 1. V2Ray 类型链接 (适用于 v2rayN / v2rayNG / Shadowrocket 等) ---"
+    echo ""
+    echo "【Trojan-Reality 链接】:"
+    echo "${TROJAN_LINK}"
+    echo ""
+    echo "【VLESS-XHTTP-Reality 链接】:"
+    echo "${VLESS_LINK}"
+    echo ""
+    echo "------------------------------------------------------------------"
+    echo "--- 2. Mihomo (Clash Meta) YAML 节点配置 (直接复制粘贴到 proxies:) ---"
+    echo ""
+cat <<EOF
+proxies:
+  - name: "Trojan-Reality"
+    type: trojan
+    server: ${SERVER_IP}
+    port: 53999
+    password: ${UUID}
+    udp: true
+    sni: ${SNI}
+    client-fingerprint: edge
+    reality-opts:
+      public-key: ${PUBLIC_KEY}
+      short-id: ${SHORT_ID}
+
+  - name: "VLESS-XHTTP-Reality"
+    type: vless
+    server: ${SERVER_IP}
+    port: 53666
+    uuid: ${UUID}
+    network: xhttp
+    udp: true
+    tls: true
+    servername: ${SNI}
+    client-fingerprint: edge
+    reality-opts:
+      public-key: ${PUBLIC_KEY}
+      short-id: ${SHORT_ID}
+    xhttp-opts:
+      mode: auto
+      path: /txc
+      headers:
+        Host: ${SNI}
+EOF
+    echo "=================================================================="
+    echo ""
+}
+
 install_xray(){
 
-    apk add --no-cache bash curl unzip ca-certificates
+    apk add --no-cache bash curl unzip ca-certificates python3
 
     mkdir -p ${XRAY_HOME} ${XRAY_CONFIG_DIR}
 
@@ -65,6 +155,7 @@ install_xray(){
     read -p "Reality SNI [www.dlcci.cn]: " SNI
     SNI=${SNI:-www.dlcci.cn}
 
+    save_client_info
 
 cat > ${XRAY_CONFIG} <<EOF
 {
@@ -161,16 +252,26 @@ chmod +x /etc/init.d/xray
 rc-update add xray default
 rc-service xray restart
 
-echo "安装完成"
-echo "UUID: ${UUID}"
-echo "PublicKey: ${PUBLIC_KEY}"
-echo "ShortID: ${SHORT_ID}"
+echo "安装完成！"
+show_client_links
 }
 
 
 regenerate(){
 
+    if [ ! -f "${CLIENT_INFO}" ]; then
+        echo "错误：未找到原配置，请先运行安装！"
+        return
+    fi
+
     reality_key
+
+    # 读取旧的 UUID 和 SNI
+    UUID=$(python3 -c "import json; print(json.load(open('${CLIENT_INFO}'))['uuid'])")
+    SNI=$(python3 -c "import json; print(json.load(open('${CLIENT_INFO}'))['sni'])")
+
+    # 更新 client_info.json
+    save_client_info
 
     python3 - <<PY
 import json
@@ -190,22 +291,25 @@ PY
 
     rc-service xray restart
 
-    echo "Reality参数已重新生成"
-    echo "PublicKey: ${PUBLIC_KEY}"
-    echo "ShortID: ${SHORT_ID}"
+    echo "Reality参数已更新！"
+    show_client_links
 }
 
 
 menu(){
+    echo "========================="
     echo "1. 安装Xray Reality"
     echo "2. 重新生成X25519和ShortID"
+    echo "3. 查看客户端配置及链接"
     echo "0. 退出"
+    echo "========================="
 
     read -p "> " choice
 
     case $choice in
         1) install_xray ;;
         2) regenerate ;;
+        3) show_client_links ;;
         0) exit ;;
         *) menu ;;
     esac
