@@ -259,10 +259,18 @@ EOF
 
 cat >/etc/init.d/xray <<EOF
 #!/sbin/openrc-run
-command="${XRAY_BIN}"
-command_args="run -c ${XRAY_CONFIG}"
+
+name="xray"
+description="Xray Reality Proxy"
+
+command="/usr/local/bin/xray/xray"
+command_args="run -c /usr/local/etc/xray/config.json"
+
+command_background=true
+pidfile="/run/${RC_SVCNAME}.pid"
+
 depend(){
- need net
+    need net
 }
 EOF
 
