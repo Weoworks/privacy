@@ -135,9 +135,16 @@ install_xray(){
 
     mkdir -p ${XRAY_HOME} ${XRAY_CONFIG_DIR}
 
-    VERSION=$(curl -fsSL https://api.github.com/repos/XTLS/Xray-core/releases/latest |
-    grep tag_name |
-    cut -d '"' -f4)
+    # 使用重定向获取最新的 Tag 名称，避免 GitHub API 解析错误或限流
+    LATEST_URL=$(curl -sIL -o /dev/null -w "%{url_effective}" https://github.com/XTLS/Xray-core/releases/latest)
+    VERSION=$(echo "${LATEST_URL}" | awk -F'/' '{print $NF}')
+
+    if [ -z "${VERSION}" ]; then
+        echo "获取 Xray 最新版本失败，请检查网络！"
+        exit 1
+    fi
+
+    echo "获取到最新的 Xray 版本: ${VERSION}"
 
     ARCH=$(get_arch)
 
