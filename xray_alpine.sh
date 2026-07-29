@@ -49,7 +49,9 @@ cat > ${CLIENT_INFO} <<EOF
   "uuid": "${UUID}",
   "public_key": "${PUBLIC_KEY}",
   "short_id": "${SHORT_ID}",
-  "sni": "${SNI}"
+  "sni": "${SNI}",
+  "trojan_port": ${TROJAN_PORT},
+  "vless_port": ${VLESS_PORT}
 }
 EOF
 }
@@ -67,10 +69,12 @@ show_client_links(){
     PUBLIC_KEY=$(python3 -c "import json; print(json.load(open('${CLIENT_INFO}'))['public_key'])")
     SHORT_ID=$(python3 -c "import json; print(json.load(open('${CLIENT_INFO}'))['short_id'])")
     SNI=$(python3 -c "import json; print(json.load(open('${CLIENT_INFO}'))['sni'])")
+    TROJAN_PORT=$(python3 -c "import json; print(json.load(open('${CLIENT_INFO}')).get('trojan_port', 53999))")
+    VLESS_PORT=$(python3 -c "import json; print(json.load(open('${CLIENT_INFO}')).get('vless_port', 53666))")
 
     # 生成 V2Ray 协议链接 (%2F 为路径斜杠 / 的 URL 编码)
-    TROJAN_LINK="trojan://${UUID}@${SERVER_IP}:53999?security=reality&sni=${SNI}&fp=edge&pbk=${PUBLIC_KEY}&sid=${SHORT_ID}&type=tcp#Trojan-Reality"
-    VLESS_LINK="vless://${UUID}@${SERVER_IP}:53666?security=reality&sni=${SNI}&fp=edge&pbk=${PUBLIC_KEY}&sid=${SHORT_ID}&type=xhttp&path=%2Ftxc&host=${SNI}&mode=auto#VLESS-XHTTP-Reality"
+    TROJAN_LINK="trojan://${UUID}@${SERVER_IP}:${TROJAN_PORT}?security=reality&sni=${SNI}&fp=edge&pbk=${PUBLIC_KEY}&sid=${SHORT_ID}&type=tcp#Trojan-Reality"
+    VLESS_LINK="vless://${UUID}@${SERVER_IP}:${VLESS_PORT}?security=reality&sni=${SNI}&fp=edge&pbk=${PUBLIC_KEY}&sid=${SHORT_ID}&type=xhttp&path=%2Ftxc&host=${SNI}&mode=auto#VLESS-XHTTP-Reality"
 
     echo ""
     echo "=================================================================="
@@ -93,7 +97,7 @@ proxies:
   - name: "Trojan-Reality"
     type: trojan
     server: ${SERVER_IP}
-    port: 53999
+    port: ${TROJAN_PORT}
     password: ${UUID}
     udp: true
     sni: ${SNI}
@@ -105,7 +109,7 @@ proxies:
   - name: "VLESS-XHTTP-Reality"
     type: vless
     server: ${SERVER_IP}
-    port: 53666
+    port: ${VLESS_PORT}
     uuid: ${UUID}
     network: xhttp
     udp: true
@@ -150,6 +154,12 @@ install_xray(){
         UUID=$(${XRAY_BIN} uuid)
     fi
 
+    read -p "请输入 Trojan 端口 [53999]: " TROJAN_PORT
+    TROJAN_PORT=${TROJAN_PORT:-53999}
+
+    read -p "请输入 VLESS XHTTP 端口 [53666]: " VLESS_PORT
+    VLESS_PORT=${VLESS_PORT:-53666}
+
     reality_key
 
     read -p "Reality SNI [www.dlcci.cn]: " SNI
@@ -167,7 +177,7 @@ cat > ${XRAY_CONFIG} <<EOF
  "inbounds":[
   {
    "tag":"trojan-reality",
-   "port":53999,
+   "port":${TROJAN_PORT},
    "protocol":"trojan",
    "settings":{
     "clients":[
@@ -196,7 +206,7 @@ cat > ${XRAY_CONFIG} <<EOF
   },
   {
    "tag":"vless-xhttp-reality",
-   "port":53666,
+   "port":${VLESS_PORT},
    "protocol":"vless",
    "settings":{
     "clients":[
@@ -266,9 +276,11 @@ regenerate(){
 
     reality_key
 
-    # 读取旧的 UUID 和 SNI
+    # 读取旧的配置信息
     UUID=$(python3 -c "import json; print(json.load(open('${CLIENT_INFO}'))['uuid'])")
     SNI=$(python3 -c "import json; print(json.load(open('${CLIENT_INFO}'))['sni'])")
+    TROJAN_PORT=$(python3 -c "import json; print(json.load(open('${CLIENT_INFO}')).get('trojan_port', 53999))")
+    VLESS_PORT=$(python3 -c "import json; print(json.load(open('${CLIENT_INFO}')).get('vless_port', 53666))")
 
     # 更新 client_info.json
     save_client_info
