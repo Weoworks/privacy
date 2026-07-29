@@ -135,16 +135,17 @@ install_xray(){
 
     mkdir -p ${XRAY_HOME} ${XRAY_CONFIG_DIR}
 
-    # 使用重定向获取最新的 Tag 名称，避免 GitHub API 解析错误或限流
-    LATEST_URL=$(curl -sIL -o /dev/null -w "%{url_effective}" https://github.com/XTLS/Xray-core/releases/latest)
-    VERSION=$(echo "${LATEST_URL}" | awk -F'/' '{print $NF}')
+    echo "正在获取 Xray 最新版本..."
 
-    if [ -z "${VERSION}" ]; then
-        echo "获取 Xray 最新版本失败，请检查网络！"
+    VERSION=$(curl -s https://api.github.com/repos/XTLS/Xray-core/releases/latest \
+    | python3 -c "import sys,json; print(json.load(sys.stdin)['tag_name'])")
+
+    if [ -z "${VERSION}" ] || [[ "${VERSION}" != v* ]]; then
+        echo "获取 Xray 最新版本失败: ${VERSION}"
         exit 1
     fi
 
-    echo "获取到最新的 Xray 版本: ${VERSION}"
+    echo "获取到最新 Xray 版本: ${VERSION}"
 
     ARCH=$(get_arch)
 
