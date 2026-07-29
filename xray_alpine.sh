@@ -100,6 +100,8 @@ proxies:
     port: ${TROJAN_PORT}
     password: ${UUID}
     udp: true
+    tfo: true
+    fast-open: true
     sni: ${SNI}
     client-fingerprint: edge
     reality-opts:
@@ -113,6 +115,8 @@ proxies:
     uuid: ${UUID}
     network: xhttp
     udp: true
+    tfo: true
+    fast-open: true
     tls: true
     servername: ${SNI}
     client-fingerprint: edge
