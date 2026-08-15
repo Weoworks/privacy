@@ -5,6 +5,6 @@ wget https://raw.githubusercontent.com/Weoworks/privacy/refs/heads/main/xray_all
 ```
 or
 ```sh
-curl -L -s https://raw.githubusercontent.com/Weoworks/privacy/refs/heads/main/xray_alpine.sh | bash
+curl -L -s https://raw.githubusercontent.com/Weoworks/privacy/refs/heads/main/xray_all.sh | bash
 ```
 - 感谢： miku111/XrayOnAlpine(https://github.com/miku111/XrayOnAlpine)
