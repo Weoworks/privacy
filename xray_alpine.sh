@@ -6,7 +6,7 @@
 set -e
 
 XRAY_HOME="/usr/local/bin/xray"
-XRAY_BIN="${XRAY_HOME}/nginx"
+XRAY_BIN="${XRAY_HOME}/xray"
 XRAY_CONFIG_DIR="/usr/local/etc/xray"
 XRAY_CONFIG="${XRAY_CONFIG_DIR}/config.json"
 CLIENT_INFO="${XRAY_CONFIG_DIR}/client_info.json"
@@ -58,7 +58,7 @@ EOF
 
 show_client_links(){
     if [ ! -f "${CLIENT_INFO}" ]; then
-        echo "未找到客户端配置文件，请先安装节点！"
+        echo "未找到客户端配置文件，请先运行安装！"
         return
     fi
 
@@ -100,8 +100,6 @@ proxies:
     port: ${TROJAN_PORT}
     password: ${UUID}
     udp: true
-    tfo: true
-    fast-open: true
     sni: ${SNI}
     client-fingerprint: edge
     reality-opts:
@@ -115,8 +113,6 @@ proxies:
     uuid: ${UUID}
     network: xhttp
     udp: true
-    tfo: true
-    fast-open: true
     tls: true
     servername: ${SNI}
     client-fingerprint: edge
@@ -163,9 +159,8 @@ update_xray(){
     "https://github.com/XTLS/Xray-core/releases/download/${VERSION}/Xray-linux-${ARCH}.zip"
 
     unzip -o /tmp/xray.zip -d /tmp/xray
-    mv /tmp/xray/xray /tmp/xray/nginx
 
-    install -m755 /tmp/xray/nginx ${XRAY_BIN}
+    install -m755 /tmp/xray/xray ${XRAY_BIN}
     rm -rf /tmp/xray /tmp/xray.zip
 
     if [ -f "/etc/init.d/xray" ]; then
@@ -257,9 +252,8 @@ install_xray(){
     "https://github.com/XTLS/Xray-core/releases/download/${VERSION}/Xray-linux-${ARCH}.zip"
 
     unzip -o /tmp/xray.zip -d /tmp/xray
-    mv /tmp/xray/xray /tmp/xray/nginx
 
-    install -m755 /tmp/xray/nginx ${XRAY_BIN}
+    install -m755 /tmp/xray/xray ${XRAY_BIN}
     rm -rf /tmp/xray /tmp/xray.zip
 
     # 顺便下载最新的 Geo 数据集
@@ -366,10 +360,16 @@ cat > ${XRAY_CONFIG} <<EOF
 }
 EOF
 
+# 修正：配置 OpenRC 后台运行参数
 cat >/etc/init.d/xray <<EOF
 #!/sbin/openrc-run
+name="xray"
+description="Xray Service"
 command="${XRAY_BIN}"
 command_args="run -c ${XRAY_CONFIG}"
+command_background="true"
+pidfile="/run/xray.pid"
+
 depend(){
  need net
 }
