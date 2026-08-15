@@ -30,6 +30,24 @@ install_dependencies(){
     fi
 }
 
+# 统一重启服务函数（增加存在性判断，避免 Unit not found 报错）
+restart_service(){
+    if command -v systemctl >/dev/null 2>&1 && [ -d /run/systemd/system ]; then
+        if [ -f "/etc/systemd/system/xray.service" ]; then
+            systemctl restart xray
+        fi
+    elif command -v rc-service >/dev/null 2>&1; then
+        if [ -f "/etc/init.d/xray" ]; then
+            rc-service xray restart
+        fi
+    else
+        if [ -f "${XRAY_CONFIG}" ]; then
+            pkill -f "${XRAY_BIN}" || true
+            ${XRAY_BIN} run -c ${XRAY_CONFIG} >/dev/null 2>&1 &
+        fi
+    fi
+}
+
 # 自动识别服务管理器 (Systemd / OpenRC) 配置服务
 setup_service(){
     if command -v systemctl >/dev/null 2>&1 && [ -d /run/systemd/system ]; then
@@ -77,18 +95,6 @@ EOF
     else
         echo "警告：未找到 Systemd 或 OpenRC，请手动启动 Xray："
         echo "${XRAY_BIN} run -c ${XRAY_CONFIG} &"
-    fi
-}
-
-# 统一重启服务函数
-restart_service(){
-    if command -v systemctl >/dev/null 2>&1 && [ -d /run/systemd/system ]; then
-        systemctl restart xray
-    elif command -v rc-service >/dev/null 2>&1; then
-        rc-service xray restart
-    else
-        pkill -f "${XRAY_BIN}" || true
-        ${XRAY_BIN} run -c ${XRAY_CONFIG} >/dev/null 2>&1 &
     fi
 }
 
