@@ -133,23 +133,29 @@ EOF
     echo ""
 }
 
-install_xray(){
+download_geo(){
+    echo "正在下载/更新 GeoIP 和 GeoSite 数据库..."
+    mkdir -p ${XRAY_HOME}
+    wget -O ${XRAY_HOME}/geoip.dat https://github.com/Loyalsoldier/v2ray-rules-dat/releases/latest/download/geoip.dat || echo "GeoIP 下载失败"
+    wget -O ${XRAY_HOME}/geosite.dat https://github.com/Loyalsoldier/v2ray-rules-dat/releases/latest/download/geosite.dat || echo "GeoSite 下载失败"
+    echo "Geo 数据库更新完成！"
+    
+    if [ -f "/etc/init.d/xray" ]; then
+        rc-service xray restart
+    fi
+}
 
-    apk add --no-cache bash curl unzip ca-certificates python3
+update_xray(){
+    echo "正在检查 Xray 最新版本..."
+    LATEST_URL=$(curl -sIL -o /dev/null -w "%{url_effective}" https://github.com/XTLS/Xray-core/releases/latest)
+    VERSION=$(echo "${LATEST_URL}" | awk -F'/' '{print $NF}')
 
-    mkdir -p ${XRAY_HOME} ${XRAY_CONFIG_DIR}
-
-    echo "正在获取 Xray 最新版本..."
-
-    VERSION=$(curl -s https://api.github.com/repos/XTLS/Xray-core/releases/latest \
-    | python3 -c "import sys,json; print(json.load(sys.stdin)['tag_name'])")
-
-    if [ -z "${VERSION}" ] || [[ "${VERSION}" != v* ]]; then
-        echo "获取 Xray 最新版本失败: ${VERSION}"
-        exit 1
+    if [ -z "${VERSION}" ]; then
+        echo "获取 Xray 最新版本失败，请检查网络！"
+        return
     fi
 
-    echo "获取到最新 Xray 版本: ${VERSION}"
+    echo "找到最新版本: ${VERSION}，准备更新..."
 
     ARCH=$(get_arch)
 
@@ -159,6 +165,103 @@ install_xray(){
     unzip -o /tmp/xray.zip -d /tmp/xray
 
     install -m755 /tmp/xray/xray ${XRAY_BIN}
+    rm -rf /tmp/xray /tmp/xray.zip
+
+    if [ -f "/etc/init.d/xray" ]; then
+        rc-service xray restart
+    fi
+
+    echo "Xray 内核更新完成！当前版本信息："
+    ${XRAY_BIN} version | head -n 1
+}
+
+modify_sni(){
+    if [ ! -f "${CLIENT_INFO}" ]; then
+        echo "错误：未找到客户端配置文件，请先运行安装！"
+        return
+    fi
+
+    CURRENT_SNI=$(python3 -c "import json; print(json.load(open('${CLIENT_INFO}')).get('sni', 'www.dlcci.cn'))")
+    echo "当前的 Reality SNI 为: ${CURRENT_SNI}"
+    read -p "请输入新的 SNI 域名 [留空保持不变]: " NEW_SNI
+    NEW_SNI=${NEW_SNI:-$CURRENT_SNI}
+
+    if [ "$NEW_SNI" = "$CURRENT_SNI" ]; then
+        echo "SNI 未变动。"
+        return
+    fi
+
+    # 使用 Python 修改 config.json 与 client_info.json
+    python3 - <<PY
+import json
+
+config_file = "${XRAY_CONFIG}"
+client_info_file = "${CLIENT_INFO}"
+new_sni = "${NEW_SNI}"
+
+# 更新 config.json
+with open(config_file, "r") as f:
+    c = json.load(f)
+
+for i in c.get("inbounds", []):
+    rs = i.get("streamSettings", {}).get("realitySettings", {})
+    if "serverNames" in rs:
+        rs["serverNames"] = [new_sni]
+    if "target" in rs:
+        rs["target"] = f"{new_sni}:443"
+    
+    xs = i.get("streamSettings", {}).get("xhttpSettings", {})
+    if "host" in xs:
+        xs["host"] = new_sni
+
+with open(config_file, "w") as f:
+    json.dump(c, f, indent=2)
+
+# 更新 client_info.json
+with open(client_info_file, "r") as f:
+    info = json.load(f)
+
+info["sni"] = new_sni
+
+with open(client_info_file, "w") as f:
+    json.dump(info, f, indent=2)
+PY
+
+    rc-service xray restart
+
+    echo "SNI 修改成功！已更新为: ${NEW_SNI}"
+    show_client_links
+}
+
+install_xray(){
+
+    apk add --no-cache bash curl unzip ca-certificates python3
+
+    mkdir -p ${XRAY_HOME} ${XRAY_CONFIG_DIR}
+
+    # 使用重定向获取最新的 Tag 名称
+    LATEST_URL=$(curl -sIL -o /dev/null -w "%{url_effective}" https://github.com/XTLS/Xray-core/releases/latest)
+    VERSION=$(echo "${LATEST_URL}" | awk -F'/' '{print $NF}')
+
+    if [ -z "${VERSION}" ]; then
+        echo "获取 Xray 最新版本失败，请检查网络！"
+        exit 1
+    fi
+
+    echo "获取到最新的 Xray 版本: ${VERSION}"
+
+    ARCH=$(get_arch)
+
+    wget -O /tmp/xray.zip \
+    "https://github.com/XTLS/Xray-core/releases/download/${VERSION}/Xray-linux-${ARCH}.zip"
+
+    unzip -o /tmp/xray.zip -d /tmp/xray
+
+    install -m755 /tmp/xray/xray ${XRAY_BIN}
+    rm -rf /tmp/xray /tmp/xray.zip
+
+    # 顺便下载最新的 Geo 数据集
+    download_geo
 
     read -p "请输入UUID(留空自动生成): " UUID
 
@@ -263,18 +366,10 @@ EOF
 
 cat >/etc/init.d/xray <<EOF
 #!/sbin/openrc-run
-
-name="xray"
-description="Xray Reality Proxy"
-
-command="/usr/local/bin/xray/xray"
-command_args="run -c /usr/local/etc/xray/config.json"
-
-command_background=true
-pidfile="/run/${RC_SVCNAME}.pid"
-
+command="${XRAY_BIN}"
+command_args="run -c ${XRAY_CONFIG}"
 depend(){
-    need net
+ need net
 }
 EOF
 
@@ -329,19 +424,27 @@ PY
 
 
 menu(){
-    echo "========================="
-    echo "1. 安装Xray Reality"
-    echo "2. 重新生成X25519和ShortID"
-    echo "3. 查看客户端配置及链接"
-    echo "0. 退出"
-    echo "========================="
+    echo "========================================="
+    echo "       Xray Reality 管理脚本            "
+    echo "========================================="
+    echo " 1. 安装 / 重置 Xray Reality"
+    echo " 2. 重新生成 X25519 密钥和 ShortID"
+    echo " 3. 修改 Reality SNI 域名"
+    echo " 4. 更新 Xray 内核"
+    echo " 5. 更新 GeoIP / GeoSite 数据库"
+    echo " 6. 查看客户端配置及链接"
+    echo " 0. 退出"
+    echo "========================================="
 
     read -p "> " choice
 
     case $choice in
         1) install_xray ;;
         2) regenerate ;;
-        3) show_client_links ;;
+        3) modify_sni ;;
+        4) update_xray ;;
+        5) download_geo ;;
+        6) show_client_links ;;
         0) exit ;;
         *) menu ;;
     esac
