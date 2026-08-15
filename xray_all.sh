@@ -185,10 +185,10 @@ proxies:
     type: trojan
     server: ${SERVER_IP}
     port: ${TROJAN_PORT}
-    password: ${UUID}
     udp: true
-    sni: ${SNI}
     client-fingerprint: edge
+    sni: ${SNI}
+    password: ${UUID}
     reality-opts:
       public-key: ${PUBLIC_KEY}
       short-id: ${SHORT_ID}
@@ -197,20 +197,20 @@ proxies:
     type: vless
     server: ${SERVER_IP}
     port: ${VLESS_PORT}
-    uuid: ${UUID}
     network: xhttp
     udp: true
     tls: true
-    servername: ${SNI}
     client-fingerprint: edge
-    reality-opts:
-      public-key: ${PUBLIC_KEY}
-      short-id: ${SHORT_ID}
     xhttp-opts:
       mode: auto
       path: /txc
       headers:
         Host: ${SNI}
+    servername: ${SNI}
+    uuid: ${UUID}
+    reality-opts:
+      public-key: ${PUBLIC_KEY}
+      short-id: ${SHORT_ID}
 EOF
     echo "=================================================================="
     echo ""
