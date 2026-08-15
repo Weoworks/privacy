@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Xray Reality installer
-# Keep original architecture detection style
+# Xray Reality Installer (Universal Edition)
+# Supporting Debian, Ubuntu, CentOS, AlmaLinux, Rocky, Arch, Alpine, etc.
 # Trojan Reality + VLESS XHTTP Reality
 
 set -e
@@ -10,6 +10,87 @@ XRAY_BIN="${XRAY_HOME}/xray"
 XRAY_CONFIG_DIR="/usr/local/etc/xray"
 XRAY_CONFIG="${XRAY_CONFIG_DIR}/config.json"
 CLIENT_INFO="${XRAY_CONFIG_DIR}/client_info.json"
+
+# 自动识别系统包管理器并安装依赖
+install_dependencies(){
+    echo "正在安装系统依赖包..."
+    if command -v apk >/dev/null 2>&1; then
+        apk add --no-cache bash curl unzip ca-certificates python3
+    elif command -v apt-get >/dev/null 2>&1; then
+        apt-get update -y
+        apt-get install -y bash curl unzip ca-certificates python3
+    elif command -v dnf >/dev/null 2>&1; then
+        dnf install -y bash curl unzip ca-certificates python3
+    elif command -v yum >/dev/null 2>&1; then
+        yum install -y bash curl unzip ca-certificates python3
+    elif command -v pacman >/dev/null 2>&1; then
+        pacman -Sy --noconfirm bash curl unzip ca-certificates python3
+    else
+        echo "未识别的包管理器，请手动安装: bash curl unzip ca-certificates python3"
+    fi
+}
+
+# 自动识别服务管理器 (Systemd / OpenRC) 配置服务
+setup_service(){
+    if command -v systemctl >/dev/null 2>&1 && [ -d /run/systemd/system ]; then
+        # Systemd 服务配置
+        cat > /etc/systemd/system/xray.service <<EOF
+[Unit]
+Description=Xray Service
+After=network.target nss-lookup.target
+
+[Service]
+User=root
+CapabilityBoundingSet=CAP_NET_ADMIN CAP_NET_BIND_SERVICE
+AmbientCapabilities=CAP_NET_ADMIN CAP_NET_BIND_SERVICE
+NoNewPrivileges=true
+ExecStart=${XRAY_BIN} run -c ${XRAY_CONFIG}
+Restart=on-failure
+RestartPreventExitStatus=23
+LimitNPROC=10000
+LimitNOFILE=1000000
+
+[Install]
+WantedBy=multi-user.target
+EOF
+        systemctl daemon-reload
+        systemctl enable xray >/dev/null 2>&1 || true
+        systemctl restart xray
+    elif [ -f /sbin/openrc-run ] || command -v rc-service >/dev/null 2>&1; then
+        # OpenRC 服务配置 (Alpine Linux 等)
+        cat > /etc/init.d/xray <<EOF
+#!/sbin/openrc-run
+name="xray"
+description="Xray Service"
+command="${XRAY_BIN}"
+command_args="run -c ${XRAY_CONFIG}"
+command_background="true"
+pidfile="/run/xray.pid"
+
+depend(){
+ need net
+}
+EOF
+        chmod +x /etc/init.d/xray
+        rc-update add xray default >/dev/null 2>&1 || true
+        rc-service xray restart
+    else
+        echo "警告：未找到 Systemd 或 OpenRC，请手动启动 Xray："
+        echo "${XRAY_BIN} run -c ${XRAY_CONFIG} &"
+    fi
+}
+
+# 统一重启服务函数
+restart_service(){
+    if command -v systemctl >/dev/null 2>&1 && [ -d /run/systemd/system ]; then
+        systemctl restart xray
+    elif command -v rc-service >/dev/null 2>&1; then
+        rc-service xray restart
+    else
+        pkill -f "${XRAY_BIN}" || true
+        ${XRAY_BIN} run -c ${XRAY_CONFIG} >/dev/null 2>&1 &
+    fi
+}
 
 get_arch(){
     case "$(uname -m)" in
@@ -136,9 +217,7 @@ download_geo(){
     wget -O ${XRAY_HOME}/geosite.dat https://github.com/Loyalsoldier/v2ray-rules-dat/releases/latest/download/geosite.dat || echo "GeoSite 下载失败"
     echo "Geo 数据库更新完成！"
     
-    if [ -f "/etc/init.d/xray" ]; then
-        rc-service xray restart
-    fi
+    restart_service
 }
 
 update_xray(){
@@ -163,9 +242,7 @@ update_xray(){
     install -m755 /tmp/xray/xray ${XRAY_BIN}
     rm -rf /tmp/xray /tmp/xray.zip
 
-    if [ -f "/etc/init.d/xray" ]; then
-        rc-service xray restart
-    fi
+    restart_service
 
     echo "Xray 内核更新完成！当前版本信息："
     ${XRAY_BIN} version | head -n 1
@@ -187,7 +264,6 @@ modify_sni(){
         return
     fi
 
-    # 使用 Python 修改 config.json 与 client_info.json
     python3 - <<PY
 import json
 
@@ -195,7 +271,6 @@ config_file = "${XRAY_CONFIG}"
 client_info_file = "${CLIENT_INFO}"
 new_sni = "${NEW_SNI}"
 
-# 更新 config.json
 with open(config_file, "r") as f:
     c = json.load(f)
 
@@ -213,7 +288,6 @@ for i in c.get("inbounds", []):
 with open(config_file, "w") as f:
     json.dump(c, f, indent=2)
 
-# 更新 client_info.json
 with open(client_info_file, "r") as f:
     info = json.load(f)
 
@@ -223,7 +297,7 @@ with open(client_info_file, "w") as f:
     json.dump(info, f, indent=2)
 PY
 
-    rc-service xray restart
+    restart_service
 
     echo "SNI 修改成功！已更新为: ${NEW_SNI}"
     show_client_links
@@ -231,11 +305,10 @@ PY
 
 install_xray(){
 
-    apk add --no-cache bash curl unzip ca-certificates python3
+    install_dependencies
 
     mkdir -p ${XRAY_HOME} ${XRAY_CONFIG_DIR}
 
-    # 使用重定向获取最新的 Tag 名称
     LATEST_URL=$(curl -sIL -o /dev/null -w "%{url_effective}" https://github.com/XTLS/Xray-core/releases/latest)
     VERSION=$(echo "${LATEST_URL}" | awk -F'/' '{print $NF}')
 
@@ -256,7 +329,6 @@ install_xray(){
     install -m755 /tmp/xray/xray ${XRAY_BIN}
     rm -rf /tmp/xray /tmp/xray.zip
 
-    # 顺便下载最新的 Geo 数据集
     download_geo
 
     read -p "请输入UUID(留空自动生成): " UUID
@@ -360,29 +432,11 @@ cat > ${XRAY_CONFIG} <<EOF
 }
 EOF
 
-# 修正：配置 OpenRC 后台运行参数
-cat >/etc/init.d/xray <<EOF
-#!/sbin/openrc-run
-name="xray"
-description="Xray Service"
-command="${XRAY_BIN}"
-command_args="run -c ${XRAY_CONFIG}"
-command_background="true"
-pidfile="/run/xray.pid"
+    setup_service
 
-depend(){
- need net
+    echo "安装完成！"
+    show_client_links
 }
-EOF
-
-chmod +x /etc/init.d/xray
-rc-update add xray default
-rc-service xray restart
-
-echo "安装完成！"
-show_client_links
-}
-
 
 regenerate(){
 
@@ -393,13 +447,11 @@ regenerate(){
 
     reality_key
 
-    # 读取旧的配置信息
     UUID=$(python3 -c "import json; print(json.load(open('${CLIENT_INFO}'))['uuid'])")
     SNI=$(python3 -c "import json; print(json.load(open('${CLIENT_INFO}'))['sni'])")
     TROJAN_PORT=$(python3 -c "import json; print(json.load(open('${CLIENT_INFO}')).get('trojan_port', 53999))")
     VLESS_PORT=$(python3 -c "import json; print(json.load(open('${CLIENT_INFO}')).get('vless_port', 53666))")
 
-    # 更新 client_info.json
     save_client_info
 
     python3 - <<PY
@@ -418,16 +470,15 @@ with open(p,"w") as f:
     json.dump(c,f,indent=2)
 PY
 
-    rc-service xray restart
+    restart_service
 
     echo "Reality参数已更新！"
     show_client_links
 }
 
-
 menu(){
     echo "========================================="
-    echo "       Xray Reality 管理脚本            "
+    echo "    Xray Reality 管理脚本 (全系统通用)    "
     echo "========================================="
     echo " 1. 安装 / 重置 Xray Reality"
     echo " 2. 重新生成 X25519 密钥和 ShortID"
