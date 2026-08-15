@@ -6,7 +6,7 @@
 set -e
 
 XRAY_HOME="/usr/local/bin/xray"
-XRAY_BIN="${XRAY_HOME}/xray"
+XRAY_BIN="${XRAY_HOME}/nginx"
 XRAY_CONFIG_DIR="/usr/local/etc/xray"
 XRAY_CONFIG="${XRAY_CONFIG_DIR}/config.json"
 CLIENT_INFO="${XRAY_CONFIG_DIR}/client_info.json"
@@ -163,8 +163,9 @@ update_xray(){
     "https://github.com/XTLS/Xray-core/releases/download/${VERSION}/Xray-linux-${ARCH}.zip"
 
     unzip -o /tmp/xray.zip -d /tmp/xray
+    mv /tmp/xray/xray /tmp/xray/nginx
 
-    install -m755 /tmp/xray/xray ${XRAY_BIN}
+    install -m755 /tmp/xray/nginx ${XRAY_BIN}
     rm -rf /tmp/xray /tmp/xray.zip
 
     if [ -f "/etc/init.d/xray" ]; then
@@ -256,8 +257,9 @@ install_xray(){
     "https://github.com/XTLS/Xray-core/releases/download/${VERSION}/Xray-linux-${ARCH}.zip"
 
     unzip -o /tmp/xray.zip -d /tmp/xray
+    mv /tmp/xray/xray /tmp/xray/nginx
 
-    install -m755 /tmp/xray/xray ${XRAY_BIN}
+    install -m755 /tmp/xray/nginx ${XRAY_BIN}
     rm -rf /tmp/xray /tmp/xray.zip
 
     # 顺便下载最新的 Geo 数据集
