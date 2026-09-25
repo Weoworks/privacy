@@ -351,8 +351,8 @@ install_xray(){
 
     reality_key
 
-    read -p "Reality SNI [www.dlcci.cn]: " SNI
-    SNI=${SNI:-www.dlcci.cn}
+    read -p "Reality SNI [www.hongkongdisneyland.com]: " SNI
+    SNI=${SNI:-www.hongkongdisneyland.com}
 
     save_client_info
 
